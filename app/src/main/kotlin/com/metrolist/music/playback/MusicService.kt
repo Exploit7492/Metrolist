@@ -198,6 +198,8 @@ import com.metrolist.music.playback.alarm.MusicAlarmScheduler
 import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
 import com.metrolist.music.playback.queues.EmptyQueue
+import com.metrolist.music.playback.queues.CampaignInjectedQueue
+import com.metrolist.music.playback.queues.campaignIdOrNull
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeQueue
@@ -1773,27 +1775,35 @@ class MusicService :
             return
         }
 
-        currentQueue = queue
+        // Campaign injection is the last step, on top of whatever order the
+        // caller settled — every queue passes through here, so a promoted
+        // campaign rides along in a search, playlist, album, radio or autoplay
+        // queue alike. See [CampaignInjectedQueue]; a slot with no eligible
+        // campaign is simply skipped, so the base queue is unchanged when
+        // nothing is live.
+        val injectedQueue: Queue =
+            if (com.mavins.campaign.Campaigns.isInitialized) CampaignInjectedQueue(queue) else queue
+        currentQueue = injectedQueue
         queueTitle = null
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
         if (!persistShuffleAcrossQueues && !restoringQueue) {
             player.shuffleModeEnabled = false
         }
         originalQueueSize = 0
-        if (queue.preloadItem != null) {
-            player.setMediaItem(queue.preloadItem!!.toMediaItem())
+        if (injectedQueue.preloadItem != null) {
+            player.setMediaItem(injectedQueue.preloadItem!!.toMediaItem())
             player.prepare()
             player.playWhenReady = playWhenReady
         }
         scope.launch(SilentHandler) {
             val initialStatus =
                 withContext(Dispatchers.IO) {
-                    queue
+                    injectedQueue
                         .getInitialStatus()
                         .filterExplicit(dataStore.get(HideExplicitKey, false))
                         .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
                 }
-            if (queue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
+            if (injectedQueue.preloadItem != null && player.playbackState == STATE_IDLE) return@launch
             if (initialStatus.title != null) {
                 queueTitle = initialStatus.title
             }
@@ -1860,11 +1870,16 @@ class MusicService :
                             videoId = currentMediaId,
                         ),
                 )
+            // Same injection as playQueue: this path builds a queue directly and
+            // never calls playQueue, so without wrapping here a seamless radio
+            // continuation would be the one queue with no campaigns in it.
+            val injectedRadioQueue: Queue =
+                if (com.mavins.campaign.Campaigns.isInitialized) CampaignInjectedQueue(radioQueue) else radioQueue
 
             try {
                 val initialStatus =
                     withContext(Dispatchers.IO) {
-                        radioQueue
+                        injectedRadioQueue
                             .getInitialStatus()
                             .filterExplicit(dataStore.get(HideExplicitKey, false))
                             .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
@@ -1893,7 +1908,7 @@ class MusicService :
                     }
                 }
 
-                currentQueue = radioQueue
+                currentQueue = injectedRadioQueue
             } catch (e: Exception) {
                 try {
                     val nextResult =
@@ -4049,6 +4064,26 @@ class MusicService :
     ) {
         val mediaItem = eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
         val historyDurationMs = dataStore[HistoryDuration]?.times(1000f) ?: 30000f
+
+        // A campaign that just finished is reported here: playback stats give
+        // the real accumulated play time and the media item carries the campaign
+        // id in its extras (see CampaignInjectedQueue). Reported once the play
+        // passes the same history threshold the app uses for its own history, so
+        // a campaign that was skipped early is not counted as a play.
+        mediaItem.campaignIdOrNull?.let { campaignId ->
+            val playedMs = playbackStats.totalPlayTimeMs
+            if (playedMs >= historyDurationMs) {
+                val lengthMs = mediaItem.mediaMetadata.durationMs ?: 0L
+                val full = lengthMs > 0L && playedMs >= lengthMs * 9 / 10
+                scope.launch(Dispatchers.IO) {
+                    com.mavins.campaign.Campaigns.recordPlay(
+                        campaignId = campaignId,
+                        listenDurationSeconds = (playedMs / 1000L).toInt(),
+                        isFullListen = full,
+                    )
+                }
+            }
+        }
 
         if (playbackStats.totalPlayTimeMs >= historyDurationMs &&
             !dataStore.get(PauseListenHistoryKey, false)

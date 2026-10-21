@@ -91,6 +91,12 @@ class App :
         Timber.plant(Timber.DebugTree())
         InnerTubeXPlayer.initialize(this)
 
+        // Mavins campaign SDK: this one call wires the whole promoted-campaign
+        // feature — it provisions the device's listener identity, loads the home
+        // banner and refreshes it, and enables queue injection. The banner UI and
+        // the injection helper ship in the SDK, so nothing else here changes.
+        com.mavins.campaign.Campaigns.init(this)
+
         // Pre-read Coil cache size on background to avoid runBlocking in newImageLoader
         applicationScope.launch(Dispatchers.IO) {
             cachedCoilCacheSize = dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()

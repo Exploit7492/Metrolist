@@ -1199,6 +1199,21 @@ fun HomeScreen(
                     )
                 }
 
+                // Mavins campaign banner. The SDK owns the UI and the state; this
+                // only says where the single homepage banner goes and how a tap
+                // plays. It renders nothing when no campaign is live, so it is
+                // safe unconditionally.
+                item(key = "mavins_campaign_banner") {
+                    com.mavins.campaign.CampaignBanner(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        onCampaignClick = { campaign ->
+                            campaign.songId.takeIf { it.isNotBlank() }?.let { videoId ->
+                                playerConnection.playQueue(YouTubeQueue(WatchEndpoint(videoId = videoId)))
+                            }
+                        },
+                    )
+                }
+
                 if (isLoading && homePage?.chips.isNullOrEmpty()) {
                     item(key = "chips_shimmer") {
                         ShimmerHost(showGradient = false) {

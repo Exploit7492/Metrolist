@@ -315,6 +315,10 @@ dependencies {
 
     implementation(libs.timber)
 
+    // Mavins campaign SDK — drop-in promoted-campaign banner and queue
+    // injection. One dependency and one init call; see App.kt.
+    implementation("com.github.King-Fisher000:mavins-web:1.0.2")
+
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
