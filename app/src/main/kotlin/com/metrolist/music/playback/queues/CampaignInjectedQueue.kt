@@ -41,7 +41,7 @@ import com.metrolist.music.models.MediaMetadata
  *   the pick to that genre and its neighbours.
  */
 class CampaignInjectedQueue(
-    private val baseQueue: Queue,
+    val baseQueue: Queue,
     private val genre: String? = null,
 ) : Queue {
 
@@ -90,6 +90,16 @@ class CampaignInjectedQueue(
 
 /** Extras key a campaign [MediaItem] carries its campaign id under. */
 const val CAMPAIGN_ID_KEY: String = "mavins_campaign_id"
+
+/**
+ * The queue [CampaignInjectedQueue] wraps, or the queue itself when it is not a
+ * decorator. `toPersistQueue` matches on the concrete queue type, so a wrapped
+ * queue falls through to its `else` branch and is persisted as a plain LIST —
+ * a restored queue then stops paging real radio and plays only the snapshot.
+ * Unwrapping keeps that check correct without it having to know campaigns exist.
+ */
+val Queue.unwrapped: Queue
+    get() = (this as? CampaignInjectedQueue)?.baseQueue ?: this
 
 /** The campaign id a [MediaItem] was injected for, or null for an ordinary track. */
 val MediaItem.campaignIdOrNull: String?

@@ -14,6 +14,7 @@ import com.metrolist.music.playback.queues.LocalAlbumRadio
 import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeAlbumRadio
 import com.metrolist.music.playback.queues.YouTubeQueue
+import com.metrolist.music.playback.queues.unwrapped
 
 fun Queue.toPersistQueue(
     title: String?,
@@ -21,7 +22,10 @@ fun Queue.toPersistQueue(
     mediaItemIndex: Int,
     position: Long
 ): PersistQueue {
-    return when (this) {
+    // Campaign injection wraps every queue in a CampaignInjectedQueue, and this
+    // `when` matches on the concrete type. Unwrap so a wrapped radio queue keeps
+    // its own QueueType instead of falling through to the LIST branch.
+    return when (val queue = unwrapped) {
         is ListQueue -> PersistQueue(
             title = title,
             items = items,
