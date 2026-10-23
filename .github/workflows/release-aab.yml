@@ -71,8 +71,8 @@ jobs:
           name=$(grep -m1 -oP '^\s*versionName\s*=\s*"\K[^"]+' app/build.gradle.kts || true)
           [ -n "$code" ] || fail "could not read versionCode from app/build.gradle.kts"
           [ -n "$name" ] || fail "could not read versionName from app/build.gradle.kts"
-          bundle_id=$(grep -m1 -oP '^\s*applicationId\s*=\s*"\K[^"]+' app/build.gradle.kts || true)
-          [ -n "$bundle_id" ] || fail "could not read applicationId from app/build.gradle.kts"
+          bundle_id=$(grep -m1 -oP '^val baseApplicationId = "\K[^"]+' app/build.gradle.kts || true)
+          [ -n "$bundle_id" ] || fail "could not read baseApplicationId from app/build.gradle.kts"
 
           # Build and check on every push; upload only from main, and only when asked.
           release=true
