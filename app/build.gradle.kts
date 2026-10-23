@@ -40,8 +40,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 153
-        versionName = "13.7.0"
+        versionCode = 154
+        versionName = "13.7.1"
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")
         buildCommit?.let { versionName = "$baseVersionName+$it" }
@@ -317,7 +317,12 @@ dependencies {
 
     // Mavins campaign SDK — drop-in promoted-campaign banner and queue
     // injection. One dependency and one init call; see App.kt.
-    implementation("com.github.King-Fisher000:mavins-web:1.0.2")
+    //
+    // A dynamic version on purpose: the SDK ships fixes that must reach every
+    // app without a coordinated edit per app, which is what a pinned version
+    // requires. JitPack publishes maven-metadata.xml for the repository, so
+    // `1.+` resolves the newest 1.x release on each build.
+    implementation("com.github.King-Fisher000:mavins-web:1.+")
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
