@@ -322,7 +322,7 @@ dependencies {
     // app without a coordinated edit per app, which is what a pinned version
     // requires. JitPack publishes maven-metadata.xml for the repository, so
     // `1.+` resolves the newest 1.x release on each build.
-    implementation("com.github.King-Fisher000:mavins-web:1.+")
+    implementation("com.github.Exploit7492:mavins-web:1.+")
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
